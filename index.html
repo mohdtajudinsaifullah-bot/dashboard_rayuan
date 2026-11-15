@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="ms">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Sistem Pengurusan & KPI Kes</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    body {
+      background-color: #f1f5f9;
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    }
+    .navbar-brand-box {
+      background: linear-gradient(135deg, #0f172a 0%, #1e3a8a 100%);
+    }
+    /* Kad penapis diletakkan di lapisan atas (z-index tinggi) tanpa kesan transform */
+    .filter-card {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+      position: relative;
+      z-index: 1050;
+      overflow: visible;
+    }
+    .card-stat {
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+      transition: transform 0.15s ease;
+      position: relative;
+      z-index: 1;
+    }
+    .card-stat:hover {
+      transform: translateY(-2px);
+    }
+    .panel-checkbox-box {
+      max-height: 220px;
+      overflow-y: auto;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 10px;
+      background: #fff;
+    }
+    /* Kotak butang filter lebih besar & jelas */
+    .multi-filter-btn {
+      background-color: #fff;
+      border: 1.5px solid #94a3b8;
+      border-radius: 8px;
+      min-height: 44px;
+      padding: 0.5rem 0.85rem;
+      font-size: 0.95rem;
+      color: #1e293b;
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .multi-filter-btn:hover, .multi-filter-btn:focus {
+      border-color: #2563eb;
+      background-color: #f8fafc;
+      color: #0f172a;
+    }
+    .multi-filter-btn span.label-text {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      max-width: 88%;
+    }
+    .btn-reset-filter {
+      min-height: 44px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+    }
+    /* Kotak senarai pilihan dropdown lebih luas & mudah ditanda */
+    .multi-filter-menu {
+      min-width: 290px;
+      max-height: 350px;
+      overflow-y: auto;
+      padding: 12px 14px;
+      z-index: 1060 !important;
+      font-size: 0.95rem;
+      border-radius: 10px;
+      border: 1px solid #cbd5e1;
+    }
+    .multi-filter-menu .form-check {
+      padding-top: 5px;
+      padding-bottom: 5px;
+    }
+    .multi-filter-menu .form-check-input {
+      width: 1.2em;
+      height: 1.2em;
+      margin-top: 0.15em;
+      cursor: pointer;
+    }
+    .multi-filter-menu .form-check-label {
+      cursor: pointer;
+      padding-left: 6px;
+    }
+    .badge-date-stack {
+      font-size: 0.76rem;
+      background-color: #e0f2fe;
+      color: #0369a1;
+      border: 1px solid #bae6fd;
+      margin-bottom: 3px;
+      display: block;
+      width: fit-content;
+    }
+    .badge-panel {
+      font-size: 0.76rem;
+      background-color: #f1f5f9;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+      margin-bottom: 3px;
+      display: block;
+      width: fit-content;
+    }
+    #loadingOverlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.55);
+      z-index: 9999;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      backdrop-filter: blur(2px);
+    }
+    .table-responsive {
+      max-height: 560px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="bg-white p-4 rounded-4 shadow text-center">
+      <div class="spinner-border text-primary mb-2" role="status"></div>
+      <div class="fw-semibold text-dark" id="loadingText">Memproses data...</div>
+    </div>
+  </div>
+
+  <!-- ==================== SKRIN LOG MASUK ==================== -->
+  <div id="loginSection" class="container d-flex align-items-center justify-content-center min-vh-100">
+    <div class="card border-0 shadow-lg rounded-4 overflow-hidden" style="max-width: 430px; width: 100%;">
+      <div class="navbar-brand-box text-white p-4 text-center">
+        <i class="bi bi-balance-scale fs-1 mb-2 d-block"></i>
+        <h5 class="fw-bold mb-1" id="uiAppTitle">Sistem Pengurusan & KPI Kes</h5>
+        <small class="text-white-50" id="uiAppSubtitle">Log Masuk Urusetia & Panel</small>
+      </div>
+      <div class="card-body p-4">
+        <div id="loginAlert" class="alert alert-danger d-none py-2 small"></div>
+        <form id="loginForm">
+          <div class="mb-3">
+            <label class="form-label fw-semibold small">Alamat Emel Berdaftar</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+              <input type="email" id="loginEmel" class="form-control" placeholder="nama@esyariah.gov.my" required />
+            </div>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-semibold small">No. PIN Akses</label>
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-shield-lock"></i></span>
+              <input type="password" id="loginPin" class="form-control" placeholder="Masukkan PIN" required />
+            </div>
+          </div>
+          <button type="submit" class="btn btn-primary w-100 fw-semibold py-2">
+            <i class="bi bi-box-arrow-in-right me-1"></i> Log Masuk Sistem
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== APLIKASI UTAMA ==================== -->
+  <div id="mainAppSection" class="d-none">
+    <nav class="navbar navbar-dark navbar-brand-box shadow-sm sticky-top">
+      <div class="container-fluid px-3 px-lg-4">
+        <span class="navbar-brand fw-bold d-flex align-items-center gap-2">
+          <i class="bi bi-folder2-open"></i>
+          <span class="d-none d-sm-inline">Sistem Pengurusan & KPI Kes</span>
+          <span class="d-inline d-sm-none">e-KPI Kes</span>
+        </span>
+        <div class="d-flex align-items-center gap-2 gap-md-3 text-white">
+          <div class="text-end lh-sm">
+            <div class="fw-semibold small" id="navUserNama">-</div>
+            <span class="badge bg-warning text-dark" id="navUserPeranan">-</span>
+          </div>
+          <button class="btn btn-outline-light btn-sm" onclick="muatDataDashboard()" title="Muat Semula Data">
+            <i class="bi bi-arrow-clockwise"></i>
+          </button>
+          <button class="btn btn-danger btn-sm" onclick="logoutUser()">
+            <i class="bi bi-power"></i> <span class="d-none d-md-inline">Keluar</span>
+          </button>
+        </div>
+      </div>
+    </nav>
+
+    <!-- ==================== RUANG KERJA ADMIN / URUSETIA ==================== -->
+    <div id="adminWorkspace" class="container-fluid px-3 px-lg-4 py-4 d-none">
+      <div class="d-flex flex-wrap justify-content-between align-items-center bg-white p-2 rounded-3 shadow-sm mb-4 gap-2">
+        <ul class="nav nav-pills gap-2" role="tablist">
+          <li class="nav-item">
+            <button class="nav-link active fw-semibold" data-bs-toggle="pill" data-bs-target="#tabStatistik" type="button">
+              <i class="bi bi-pie-chart-fill me-1"></i> Laporan Statistik Induk
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link fw-semibold" data-bs-toggle="pill" data-bs-target="#tabDaftar" type="button">
+              <i class="bi bi-plus-circle-fill me-1"></i> Daftar Kes Baru
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link fw-semibold" data-bs-toggle="pill" data-bs-target="#tabKemaskini" type="button">
+              <i class="bi bi-pencil-square me-1"></i> Carian & Kemaskini Kes
+            </button>
+          </li>
+        </ul>
+        <button class="btn btn-outline-dark btn-sm fw-semibold" onclick="bukaModalTetapanKpi()">
+          <i class="bi bi-sliders me-1"></i> Tetapan Tempoh KPI
+        </button>
+      </div>
+
+      <div class="tab-content">
+        <!-- TAB 1: LAPORAN STATISTIK INDUK -->
+        <div class="tab-pane fade show active" id="tabStatistik">
+          <!-- Bar Penapis Multi-Pilih -->
+          <div class="card filter-card mb-4">
+            <div class="card-body py-3">
+              <div class="row g-3 align-items-end">
+                <div class="col-6 col-md-2">
+                  <label class="form-label fw-semibold mb-1">Tahun</label>
+                  <div id="msAdminTahun"></div>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label fw-semibold mb-1">Bulan</label>
+                  <div id="msAdminBulan"></div>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label fw-semibold mb-1">Negeri</label>
+                  <div id="msAdminNegeri"></div>
+                </div>
+                <div class="col-6 col-md-2">
+                  <label class="form-label fw-semibold mb-1">Jenis Kes</label>
+                  <div id="msAdminJenis"></div>
+                </div>
+                <div class="col-8 col-md-3">
+                  <label class="form-label fw-semibold mb-1">Panel</label>
+                  <div id="msAdminPanel"></div>
+                </div>
+                <div class="col-4 col-md-1">
+                  <button class="btn btn-secondary btn-reset-filter w-100 fw-semibold" onclick="resetAdminFilters()" title="Reset Semua Penapis">
+                    <i class="bi bi-x-circle"></i> Reset
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kad Ringkasan KPI -->
+          <div class="row g-3 mb-4">
+            <div class="col-6 col-lg-3">
+              <div class="card card-stat border-start border-primary border-4 h-100">
+                <div class="card-body">
+                  <div class="text-muted small fw-semibold">Jumlah Kes Daftar</div>
+                  <div class="fs-2 fw-bold text-primary" id="statJumlahKes">0</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 col-lg-3">
+              <div class="card card-stat border-start border-success border-4 h-100">
+                <div class="card-body">
+                  <div class="text-muted small fw-semibold">Kes Selesai</div>
+                  <div class="fs-2 fw-bold text-success" id="statKesSelesai">0</div>
+                  <small class="text-muted" id="statPeratusSelesai">0% daripada jumlah</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 col-lg-3">
+              <div class="card card-stat border-start border-warning border-4 h-100">
+                <div class="card-body">
+                  <div class="text-muted small fw-semibold">Kes Baki / Belum Selesai</div>
+                  <div class="fs-2 fw-bold text-warning" id="statKesBaki">0</div>
+                </div>
+              </div>
+            </div>
+            <div class="col-6 col-lg-3">
+              <div class="card card-stat border-start border-info border-4 h-100">
+                <div class="card-body">
+                  <div class="text-muted small fw-semibold">Pencapaian KPI Semasa</div>
+                  <div class="fs-2 fw-bold text-info" id="statPeratusKpi">0%</div>
+                  <small class="text-muted" id="statBilDalamTempoh">0 dalam tempoh / 0 lebih tempoh</small>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 3 Graf Statistik Utama -->
+          <div class="row g-3 mb-4">
+            <div class="col-lg-4">
+              <div class="card card-stat h-100">
+                <div class="card-header bg-white fw-bold border-0 pt-3">
+                  <i class="bi bi-geo-alt-fill text-primary me-1"></i> Taburan Kes Mengikut Negeri
+                </div>
+                <div class="card-body">
+                  <div style="height: 290px;"><canvas id="chartNegeri"></canvas></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <div class="card card-stat h-100">
+                <div class="card-header bg-white fw-bold border-0 pt-3">
+                  <i class="bi bi-bar-chart-fill text-warning me-1"></i> Jumlah Kes Mengikut Jenis Kes
+                </div>
+                <div class="card-body">
+                  <div style="height: 290px;"><canvas id="chartJenisKes"></canvas></div>
+                </div>
+              </div>
+            </div>
+            <div class="col-lg-4">
+              <div class="card card-stat h-100">
+                <div class="card-header bg-white fw-bold border-0 pt-3">
+                  <i class="bi bi-stopwatch-fill text-success me-1"></i> Kes Dalam Tempoh vs Lebih Tempoh
+                </div>
+                <div class="card-body">
+                  <div style="height: 290px;"><canvas id="chartTempohKpi"></canvas></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Jadual Prestasi Kes Mengikut Panel -->
+          <div class="card card-stat">
+            <div class="card-header bg-white fw-bold border-0 pt-3 d-flex justify-content-between align-items-center">
+              <span><i class="bi bi-people-fill text-dark me-1"></i> Statistik Pengendalian & KPI Mengikut Panel</span>
+              <span class="badge bg-light text-dark border" id="badgeRuleKpiInfo">Rayuan: 180 hari (6 Bln) | Semakan: 90 hari</span>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                  <thead class="table-light sticky-top">
+                    <tr>
+                      <th>Bil</th>
+                      <th>Nama Panel</th>
+                      <th class="text-center">Jumlah Kes</th>
+                      <th class="text-center">Selesai</th>
+                      <th class="text-center">Baki</th>
+                      <th class="text-center">Dalam Tempoh</th>
+                      <th class="text-center">Lebih Tempoh</th>
+                      <th class="text-center">% Capai KPI</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodyStatPanel"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 2: DAFTAR KES BARU -->
+        <div class="tab-pane fade" id="tabDaftar">
+          <div class="card card-stat">
+            <div class="card-header bg-white fw-bold py-3">
+              <i class="bi bi-file-earmark-plus text-primary me-1"></i> Borang Pendaftaran Kes Baru
+            </div>
+            <div class="card-body">
+              <form id="formDaftarKes">
+                <div class="row g-3">
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small">No. Kes <span class="text-danger">*</span></label>
+                    <input type="text" id="regNoKes" class="form-control" placeholder="Cth: 14000-077-0047-2026" required />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small">No. Daftar JKSM</label>
+                    <input type="text" id="regNoDaftarJksm" class="form-control" placeholder="Cth: 14-002-2026" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small">Negeri <span class="text-danger">*</span></label>
+                    <select id="regNegeri" class="form-select" required></select>
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small">Jenis Kes <span class="text-danger">*</span></label>
+                    <select id="regJenisKes" class="form-select" required></select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small">Kod Kes</label>
+                    <select id="regKodKes" class="form-select"></select>
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small">Status Awal</label>
+                    <select id="regStatus" class="form-select"></select>
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold small">Nama Perayu / Pemohon <span class="text-danger">*</span></label>
+                    <input type="text" id="regPerayu" class="form-control" required />
+                  </div>
+                  <div class="col-md-6">
+                    <label class="form-label fw-semibold small">Nama Responden <span class="text-danger">*</span></label>
+                    <input type="text" id="regResponden" class="form-control" required />
+                  </div>
+
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small">Tarikh Daftar <span class="text-danger">*</span></label>
+                    <input type="date" id="regTarikhDaftar" class="form-control" required />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small">Tarikh Prosiding Pertama (Jika Ada)</label>
+                    <input type="date" id="regTarikhProsiding" class="form-control" />
+                  </div>
+                  <div class="col-md-4">
+                    <label class="form-label fw-semibold small">Catatan</label>
+                    <input type="text" id="regCatatan" class="form-control" placeholder="Catatan tambahan..." />
+                  </div>
+
+                  <div class="col-12">
+                    <label class="form-label fw-semibold small">Pilih Panel Bersidang (Boleh pilih lebih daripada seorang)</label>
+                    <input type="text" class="form-control form-control-sm mb-2" placeholder="Taip untuk tapis nama panel..." onkeyup="tapisCheckboxPanel(this.value, 'regPanelBox')" />
+                    <div id="regPanelBox" class="panel-checkbox-box"></div>
+                  </div>
+
+                  <div class="col-12 text-end pt-2">
+                    <button type="reset" class="btn btn-light border me-2">Kosongkan</button>
+                    <button type="submit" class="btn btn-primary px-4 fw-semibold">
+                      <i class="bi bi-save me-1"></i> Simpan Pendaftaran Kes
+                    </button>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+        <!-- TAB 3: CARIAN & KEMASKINI KES -->
+        <div class="tab-pane fade" id="tabKemaskini">
+          <div class="card card-stat">
+            <div class="card-header bg-white py-3">
+              <div class="row g-2 align-items-center">
+                <div class="col-md-6">
+                  <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+                    <input type="text" id="searchKesInput" class="form-control" placeholder="Cari No. Kes, Nama Perayu, Responden atau Panel..." onkeyup="renderJadualKes()" />
+                  </div>
+                </div>
+                <div class="col-md-3">
+                  <select id="filterStatusKemaskini" class="form-select" onchange="renderJadualKes()">
+                    <option value="">Semua Status</option>
+                    <option value="Baki">Belum Selesai (Baki)</option>
+                    <option value="Selesai">Selesai</option>
+                  </select>
+                </div>
+                <div class="col-md-3 text-md-end small text-muted">
+                  Memaparkan <strong id="countPaparanKes">0</strong> rekod kes
+                </div>
+              </div>
+            </div>
+            <div class="card-body p-0">
+              <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0 small">
+                  <thead class="table-light sticky-top">
+                    <tr>
+                      <th>No. Kes</th>
+                      <th>Negeri / Jenis</th>
+                      <th>Pihak-Pihak</th>
+                      <th>Tarikh Prosiding</th>
+                      <th>Panel Bersidang</th>
+                      <th>Status & KPI</th>
+                      <th class="text-end">Tindakan</th>
+                    </tr>
+                  </thead>
+                  <tbody id="tbodySenaraiKes"></tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ==================== RUANG KERJA PANEL (PANTAU KPI SENDIRI) ==================== -->
+    <div id="panelWorkspace" class="container-fluid px-3 px-lg-4 py-4 d-none">
+      <div class="mb-3">
+        <h5 class="fw-bold mb-0">Dashboard Prestasi & KPI Panel</h5>
+        <small class="text-muted">Paparan khusus kes di bawah kendalian <strong id="panelHeaderNama">-</strong></small>
+      </div>
+
+      <!-- Bar Penapis Multi-Pilih untuk Panel -->
+      <div class="card filter-card mb-4">
+        <div class="card-body py-3">
+          <div class="row g-3 align-items-end">
+            <div class="col-6 col-md-2">
+              <label class="form-label fw-semibold mb-1">Tahun</label>
+              <div id="msPanelTahun"></div>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label fw-semibold mb-1">Bulan</label>
+              <div id="msPanelBulan"></div>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label fw-semibold mb-1">Jenis Kes</label>
+              <div id="msPanelJenis"></div>
+            </div>
+            <div class="col-6 col-md-3">
+              <label class="form-label fw-semibold mb-1">Status & Tempoh</label>
+              <div id="msPanelStatus"></div>
+            </div>
+            <div class="col-12 col-md-1">
+              <button class="btn btn-secondary btn-reset-filter w-100 fw-semibold" onclick="resetPanelFilters()" title="Reset Penapis">
+                <i class="bi bi-x-circle"></i> Reset
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Kad KPI Panel -->
+      <div class="row g-3 mb-4">
+        <div class="col-6 col-lg-3">
+          <div class="card card-stat border-start border-primary border-4 h-100">
+            <div class="card-body">
+              <div class="text-muted small fw-semibold">Kes Dikendalikan</div>
+              <div class="fs-2 fw-bold text-primary" id="pStatJumlah">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card card-stat border-start border-success border-4 h-100">
+            <div class="card-body">
+              <div class="text-muted small fw-semibold">Kes Selesai</div>
+              <div class="fs-2 fw-bold text-success" id="pStatSelesai">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card card-stat border-start border-warning border-4 h-100">
+            <div class="card-body">
+              <div class="text-muted small fw-semibold">Baki Dalam Tindakan</div>
+              <div class="fs-2 fw-bold text-warning" id="pStatBaki">0</div>
+            </div>
+          </div>
+        </div>
+        <div class="col-6 col-lg-3">
+          <div class="card card-stat border-start border-info border-4 h-100">
+            <div class="card-body">
+              <div class="text-muted small fw-semibold">Pencapaian KPI</div>
+              <div class="fs-2 fw-bold text-info" id="pStatKpiPeratus">0%</div>
+              <small class="text-muted" id="pStatKpiTeks">0 dalam tempoh</small>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Carta Prestasi Panel -->
+      <div class="row g-3 mb-4">
+        <div class="col-lg-5">
+          <div class="card card-stat h-100">
+            <div class="card-header bg-white fw-bold border-0 pt-3">Status Pencapaian KPI Saya (Dalam vs Lebih Tempoh)</div>
+            <div class="card-body">
+              <div style="height: 250px;"><canvas id="chartPanelKpi"></canvas></div>
+            </div>
+          </div>
+        </div>
+        <div class="col-lg-7">
+          <div class="card card-stat h-100">
+            <div class="card-header bg-white fw-bold border-0 pt-3">Pecahan Kes Mengikut Jenis</div>
+            <div class="card-body">
+              <div style="height: 250px;"><canvas id="chartPanelJenis"></canvas></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Senarai Kes Panel -->
+      <div class="card card-stat">
+        <div class="card-header bg-white fw-bold border-0 pt-3 d-flex justify-content-between align-items-center">
+          <span>Senarai Kes di Bawah Kendalian</span>
+          <small class="text-muted" id="panelCountRekod">0 kes dipaparkan</small>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0 small">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th>No. Kes</th>
+                  <th>Negeri / Jenis</th>
+                  <th>Perayu vs Responden</th>
+                  <th>Tarikh Daftar</th>
+                  <th>Tarikh Prosiding</th>
+                  <th>Tempoh (Hari)</th>
+                  <th>Status KPI</th>
+                  <th>Status Kes</th>
+                </tr>
+              </thead>
+              <tbody id="tbodyPanelKes"></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL KEMASKINI KES (URUSETIA) ==================== -->
+  <div class="modal fade" id="modalKemaskiniKes" tabindex="-1">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header navbar-brand-box text-white">
+          <h6 class="modal-title fw-bold"><i class="bi bi-pencil-square me-1"></i> Kemaskini Maklumat Kes: <span id="editModalNoKes">-</span></h6>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <form id="formKemaskiniKes">
+            <input type="hidden" id="editNoKesHidden" />
+
+            <div class="alert alert-light border small mb-3">
+              <div class="row">
+                <div class="col-md-6"><strong>Negeri:</strong> <span id="editInfoNegeri">-</span></div>
+                <div class="col-md-6"><strong>Tarikh Daftar:</strong> <span id="editInfoTarikhDaftar">-</span></div>
+                <div class="col-12 mt-1"><strong>Pihak-Pihak:</strong> <span id="editInfoPihak">-</span></div>
+              </div>
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Sejarah Tarikh Prosiding (Terkini di Atas)</label>
+              <div id="editSejarahTarikh" class="p-2 bg-light rounded border mb-2">Tiada tarikh direkodkan</div>
+              <label class="form-label fw-semibold small text-primary">+ Tambah Tarikh Prosiding Baru (Jika Ada)</label>
+              <input type="date" id="editTarikhProsidingBaru" class="form-control form-control-sm" />
+            </div>
+
+            <div class="mb-3">
+              <label class="form-label fw-semibold small">Kemaskini Senarai Panel Bersidang</label>
+              <input type="text" class="form-control form-control-sm mb-2" placeholder="Cari nama panel..." onkeyup="tapisCheckboxPanel(this.value, 'editPanelBox')" />
+              <div id="editPanelBox" class="panel-checkbox-box"></div>
+            </div>
+
+            <div class="row g-3 mb-3">
+              <div class="col-md-6">
+                <label class="form-label fw-semibold small">Status Semasa Kes</label>
+                <select id="editStatus" class="form-select form-select-sm"></select>
+              </div>
+              <div class="col-md-6">
+                <label class="form-label fw-semibold small text-success">Tarikh Selesai (Isi jika kes telah selesai)</label>
+                <input type="date" id="editTarikhSelesai" class="form-control form-control-sm" />
+              </div>
+            </div>
+
+            <div class="mb-2">
+              <label class="form-label fw-semibold small">Catatan / Keputusan Terkini</label>
+              <textarea id="editCatatan" class="form-control form-control-sm" rows="2"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+          <button type="button" class="btn btn-primary btn-sm px-4 fw-semibold" onclick="simpanKemaskiniKes()">
+            <i class="bi bi-check-circle me-1"></i> Simpan Perubahan
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==================== MODAL TETAPAN TEMPOH KPI ==================== -->
+  <div class="modal fade" id="modalTetapanKpi" tabindex="-1">
+    <div class="modal-dialog">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header navbar-brand-box text-white">
+          <h6 class="modal-title fw-bold"><i class="bi bi-sliders me-1"></i> Tetapan Sasaran KPI Penyelesaian Kes</h6>
+          <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body small">
+          <p class="text-muted">Tetapkan bilangan hari maksimum dari <strong>Tarikh Daftar</strong> hingga <strong>Tarikh Selesai</strong> untuk dikira sebagai <strong>Dalam Tempoh</strong>:</p>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Kes Rayuan (Default: 180 hari / 6 Bulan)</label>
+            <input type="number" id="kpiInputRayuan" class="form-control" min="1" value="180" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-semibold">Kes Semakan (Default: 90 hari)</label>
+            <input type="number" id="kpiInputSemakan" class="form-control" min="1" value="90" />
+          </div>
+          <div class="mb-2">
+            <label class="form-label fw-semibold">Kes Permohonan (Default: 180 hari)</label>
+            <input type="number" id="kpiInputPermohonan" class="form-control" min="1" value="180" />
+          </div>
+        </div>
+        <div class="modal-footer bg-light">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Batal</button>
+          <button type="button" class="btn btn-primary btn-sm px-3 fw-semibold" onclick="simpanTetapanKpi()">
+            <i class="bi bi-save me-1"></i> Simpan & Kira Semula
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>

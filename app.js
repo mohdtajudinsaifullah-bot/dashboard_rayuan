@@ -87,6 +87,8 @@ document.addEventListener("DOMContentLoaded", () => {
       if (res.status === "success") {
         alert(res.message);
         document.getElementById("formDaftarKes").reset();
+        const hintJksm = document.getElementById("hintNoJksm");
+        if (hintJksm) hintJksm.textContent = "Auto-jana mengikut running no. terakhir negeri";
         await muatDataDashboard();
       } else {
         alert("Gagal: " + res.message);
@@ -447,6 +449,11 @@ function isiDropdownRujukan() {
   isiSelect("regStatus", unik(rujukanData.status), null);
   isiSelect("editStatus", unik(rujukanData.status), null);
 
+  const negeriKemaskiniList = unik([...rujukanData.negeri, ...allKes.map(k => k.negeri)]).sort();
+  const tahunKemaskiniList = unik(allKes.map(k => String(k.tahun || ""))).sort().reverse();
+  isiSelect("filterNegeriKemaskini", negeriKemaskiniList, "Semua Negeri");
+  isiSelect("filterTahunKemaskini", tahunKemaskiniList, "Semua Tahun");
+
   binaCheckboxPanel("regPanelBox", unik(rujukanData.panel), []);
   binaCheckboxPanel("editPanelBox", unik(rujukanData.panel), []);
   kemaskiniBadgeKpiInfo();
@@ -659,10 +666,14 @@ function renderAdminStats() {
 function renderJadualKes() {
   const kw = document.getElementById("searchKesInput").value.toLowerCase().trim();
   const statusFilter = document.getElementById("filterStatusKemaskini").value;
+  const negeriFilter = document.getElementById("filterNegeriKemaskini")?.value || "";
+  const tahunFilter = document.getElementById("filterTahunKemaskini")?.value || "";
 
   const filtered = allKes.filter(k => {
     if (statusFilter === "Selesai" && !k.isSelesai) return false;
     if (statusFilter === "Baki" && k.isSelesai) return false;
+    if (negeriFilter && k.negeri !== negeriFilter) return false;
+    if (tahunFilter && String(k.tahun || "") !== tahunFilter) return false;
 
     if (!kw) return true;
     const gabungan = `${k.noKes} ${k.negeri} ${k.perayu} ${k.responden} ${(k.panelList || []).join(" ")}`.toLowerCase();
@@ -869,4 +880,98 @@ function lukisCarta(canvasId, type, data, extraOptions = {}) {
       ...extraOptions
     }
   });
+}
+// ==================== AUTO-JANA NO. DAFTAR JKSM MENGIKUT NEGERI ====================
+function janaNoDaftarJksm() {
+  const noKesInput = document.getElementById("regNoKes");
+  const jksmInput = document.getElementById("regNoDaftarJksm");
+  const negeriSelect = document.getElementById("regNegeri");
+  const hintEl = document.getElementById("hintNoJksm");
+
+  if (!noKesInput || !jksmInput || !negeriSelect) return;
+
+  const noKes = noKesInput.value.trim();
+  if (!noKes) {
+    jksmInput.value = "";
+    if (hintEl) hintEl.textContent = "Auto-jana mengikut running no. terakhir negeri";
+    return;
+  }
+
+  // Padankan corak No. Kes: cth 2509-A0007-043-0019.A1
+  const match = noKes.match(/^(.+-)(\d+)(?:[.-]([A-Za-z0-9]+))?$/);
+  if (!match) {
+    if (hintEl) hintEl.textContent = "Format No. Kes belum lengkap untuk auto-jana";
+    return;
+  }
+
+  const prefix = match[1];           // cth: 2509-A0007-043-
+  const seqLength = match[2].length; // cth: 4 digit (0019)
+  const suffix = match[3] || "";     // cth: A1
+
+  const segs = prefix.split("-").filter(Boolean);
+  const yearPrefix = segs[0] && /^\d{2}/.test(segs[0]) ? segs[0].slice(0, 2) : "";
+  const courtCode = segs.length >= 2 ? segs[1] : "";
+
+  // Auto-pilih Negeri jika belum dipilih berdasarkan kod mahkamah dalam rekod sedia ada
+  let negeri = negeriSelect.value;
+  if (!negeri && courtCode) {
+    const padanNegeri = allKes.find(k =>
+      k.negeri && (
+        String(k.noKes || "").includes(`-${courtCode}-`) ||
+        String(k.noDaftarJksm || "").includes(`-${courtCode}-`)
+      )
+    );
+    if (padanNegeri) {
+      negeri = padanNegeri.negeri;
+      negeriSelect.value = negeri;
+    }
+  }
+
+  // Semak running no. terakhir dalam senarai daftar sedia ada untuk negeri & tahun tersebut
+  let maxNo = 0;
+  allKes.forEach(k => {
+    const jksm = String(k.noDaftarJksm || "").trim();
+    if (!jksm) return;
+
+    // Tapis mengikut negeri (atau kod mahkamah jika negeri belum dipilih)
+    if (negeri) {
+      if (k.negeri !== negeri) return;
+    } else if (courtCode) {
+      if (!jksm.includes(`-${courtCode}-`)) return;
+    }
+
+    // Tapis mengikut awalan tahun 2-digit jika ada (cth: 25 vs 26)
+    if (yearPrefix && /^\d{2}/.test(jksm) && !jksm.startsWith(yearPrefix)) {
+      return;
+    }
+
+    // Ekstrak nombor larian sebelum .JKSM (cth: -0019.JKSMA1 -> 19)
+    const mJksm = jksm.match(/-(\d+)\.JKSM/i);
+    if (mJksm) {
+      const num = parseInt(mJksm[1], 10);
+      if (!isNaN(num) && num > maxNo) maxNo = num;
+      return;
+    }
+
+    // Sandaran jika format lama tanpa .JKSM
+    const mGen = jksm.match(/^.+?-(\d+)(?:[.-][A-Za-z0-9]+)?$/);
+    if (mGen) {
+      const num = parseInt(mGen[1], 10);
+      if (!isNaN(num) && num > maxNo) maxNo = num;
+    }
+  });
+
+  const nextNo = maxNo + 1;
+  const nextPadded = String(nextNo).padStart(seqLength, "0");
+  jksmInput.value = `${prefix}${nextPadded}.JKSM${suffix}`;
+
+  if (hintEl) {
+    if (negeri) {
+      hintEl.textContent = maxNo > 0
+        ? `Rekod terakhir ${negeri}: ${String(maxNo).padStart(seqLength, "0")} → Dijana: ${nextPadded}`
+        : `Rekod pertama ${negeri} → Dijana: ${nextPadded}`;
+    } else {
+      hintEl.textContent = `Sila pilih Negeri untuk semakan tepat (Dijana: ${nextPadded})`;
+    }
+  }
 }

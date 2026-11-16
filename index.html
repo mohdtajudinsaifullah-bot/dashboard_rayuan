@@ -370,15 +370,16 @@
                 <div class="row g-3">
                   <div class="col-md-4">
                     <label class="form-label fw-semibold small">No. Kes <span class="text-danger">*</span></label>
-                    <input type="text" id="regNoKes" class="form-control" placeholder="Cth: 14000-077-0047-2026" required />
+                    <input type="text" id="regNoKes" class="form-control" placeholder="Cth: 2509-A0007-043-0019.A1" oninput="janaNoDaftarJksm()" required />
                   </div>
                   <div class="col-md-4">
-                    <label class="form-label fw-semibold small">No. Daftar JKSM</label>
-                    <input type="text" id="regNoDaftarJksm" class="form-control" placeholder="Cth: 14-002-2026" />
+                    <label class="form-label fw-semibold small">No. Daftar JKSM <span class="badge bg-info text-dark">Auto</span></label>
+                    <input type="text" id="regNoDaftarJksm" class="form-control fw-semibold text-primary" placeholder="Auto-jana dari No. Kes" />
+                    <small class="text-muted d-block mt-1" id="hintNoJksm">Auto-jana mengikut running no. terakhir negeri</small>
                   </div>
                   <div class="col-md-4">
                     <label class="form-label fw-semibold small">Negeri <span class="text-danger">*</span></label>
-                    <select id="regNegeri" class="form-select" required></select>
+                    <select id="regNegeri" class="form-select" onchange="janaNoDaftarJksm()" required></select>
                   </div>
 
                   <div class="col-md-4">
@@ -439,20 +440,30 @@
           <div class="card card-stat">
             <div class="card-header bg-white py-3">
               <div class="row g-2 align-items-center">
-                <div class="col-md-6">
+                <div class="col-12 col-lg-4">
                   <div class="input-group">
                     <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
                     <input type="text" id="searchKesInput" class="form-control" placeholder="Cari No. Kes, Nama Perayu, Responden atau Panel..." onkeyup="renderJadualKes()" />
                   </div>
                 </div>
-                <div class="col-md-3">
+                <div class="col-6 col-md-4 col-lg-2">
+                  <select id="filterNegeriKemaskini" class="form-select" onchange="renderJadualKes()">
+                    <option value="">Semua Negeri</option>
+                  </select>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
+                  <select id="filterTahunKemaskini" class="form-select" onchange="renderJadualKes()">
+                    <option value="">Semua Tahun</option>
+                  </select>
+                </div>
+                <div class="col-6 col-md-4 col-lg-2">
                   <select id="filterStatusKemaskini" class="form-select" onchange="renderJadualKes()">
                     <option value="">Semua Status</option>
                     <option value="Baki">Belum Selesai (Baki)</option>
                     <option value="Selesai">Selesai</option>
                   </select>
                 </div>
-                <div class="col-md-3 text-md-end small text-muted">
+                <div class="col-6 col-md-12 col-lg-2 text-lg-end small text-muted">
                   Memaparkan <strong id="countPaparanKes">0</strong> rekod kes
                 </div>
               </div>
